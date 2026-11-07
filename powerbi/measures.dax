@@ -1,0 +1,73 @@
+// ============================================================
+// FINTECH FRAUD RISK ANALYTICS
+// DAX measure library for the 4-dashboard Power BI report
+// ============================================================
+// Table names assumed (see powerbi/README.md for the full data model):
+//   Transactions        (= data/processed/transactions.csv)
+//   ModelResults         (= data/processed/model_results.csv)
+//   FraudPredictions     (= data/processed/fraud_predictions.csv)
+//   ExceptionTransactions (= data/processed/exception_transactions.csv)
+// ============================================================
+
+
+// ---------- DASHBOARD 1: EXECUTIVE OVERVIEW ----------
+
+Total Transactions = COUNTROWS(Transactions)
+
+Fraud Transactions = CALCULATE(COUNTROWS(Transactions), Transactions[is_fraud] = 1)
+
+Fraud Rate % = DIVIDE([Fraud Transactions], [Total Transactions]) * 100
+
+Total Transaction Value = SUM(Transactions[amount])
+
+High Risk Transactions = CALCULATE(COUNTROWS(FraudPredictions), FraudPredictions[risk_level] IN {"HIGH", "CRITICAL"})
+
+
+// ---------- DASHBOARD 2: RISK MONITORING ----------
+
+Avg Fraud Probability = AVERAGE(FraudPredictions[fraud_probability])
+
+High Risk Volume = CALCULATE(COUNTROWS(FraudPredictions), FraudPredictions[risk_level] = "HIGH")
+
+Critical Risk Volume = CALCULATE(COUNTROWS(FraudPredictions), FraudPredictions[risk_level] = "CRITICAL")
+
+// Bind Risk Distribution visuals to FraudPredictions[risk_level] directly on
+// an axis/legend - it's already categorical, no measure needed for the split itself.
+
+Predicted Fraud Count = CALCULATE(COUNTROWS(FraudPredictions), FraudPredictions[model_prediction] = 1)
+
+Avg Transaction Amount (by risk) = AVERAGE(Transactions[amount])
+// Use with FraudPredictions[risk_level] on rows (after relating Transactions <-> FraudPredictions)
+
+
+// ---------- DASHBOARD 3: MODEL PERFORMANCE ----------
+// ModelResults already stores one row per model with precision/recall/f1/
+// roc_auc/pr_auc pre-computed (Phase 12) - these measures just make the
+// pre-computed columns usable as card/KPI values when a single model is
+// selected via a slicer on ModelResults[model_name].
+
+Precision = SELECTEDVALUE(ModelResults[precision_score])
+Recall = SELECTEDVALUE(ModelResults[recall_score])
+F1 Score = SELECTEDVALUE(ModelResults[f1_score])
+ROC AUC = SELECTEDVALUE(ModelResults[roc_auc])
+PR AUC = SELECTEDVALUE(ModelResults[pr_auc])
+
+Best Model by PR-AUC =
+VAR MaxPRAUC = MAXX(ALL(ModelResults), ModelResults[pr_auc])
+RETURN
+    CALCULATE(SELECTEDVALUE(ModelResults[model_name]), ModelResults[pr_auc] = MaxPRAUC)
+
+
+// ---------- DASHBOARD 4: OPERATIONS REVIEW ----------
+
+Pending Review Count = CALCULATE(COUNTROWS(ExceptionTransactions), ExceptionTransactions[review_status] = "PENDING")
+
+Escalated Count = CALCULATE(COUNTROWS(ExceptionTransactions), ExceptionTransactions[review_status] = "ESCALATED")
+
+Cleared Count = CALCULATE(COUNTROWS(ExceptionTransactions), ExceptionTransactions[review_status] = "CLEARED")
+
+Total Exposure (Exceptions) = SUM(ExceptionTransactions[transaction_amount])
+
+// Bind the operations table directly to ExceptionTransactions columns:
+// transaction_id, transaction_amount, fraud_probability, risk_level,
+// prediction, review_status - no measures needed, it's a row-level browse.

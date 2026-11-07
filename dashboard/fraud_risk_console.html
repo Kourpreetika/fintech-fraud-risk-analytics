@@ -1,0 +1,661 @@
+<title>Fraud Risk Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;650&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f7f5f4;
+    --text-primary:   #17120f;
+    --text-secondary: #5a5049;
+    --text-muted:     #928980;
+    --grid:           #e6e0da;
+    --baseline:       #c9beb4;
+    --border:         rgba(23,18,15,0.10);
+
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+    --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --warning-ink: color-mix(in oklab, var(--warning) 70%, black);
+    --accent: var(--critical);
+
+    --font-ui:   "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1c1917;
+      --page-plane:     #0e0c0b;
+      --text-primary:   #f8f6f4;
+      --text-secondary: #c9c0b8;
+      --text-muted:     #928980;
+      --grid:           #2f2b28;
+      --baseline:       #423b36;
+      --border:         rgba(248,246,244,0.10);
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+      --s4: #c98500; --s5: #d55181; --s6: #008300;
+      --warning-ink: color-mix(in oklab, var(--warning) 75%, white);
+      --accent: #e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1c1917;
+    --page-plane:     #0e0c0b;
+    --text-primary:   #f8f6f4;
+    --text-secondary: #c9c0b8;
+    --text-muted:     #928980;
+    --grid:           #2f2b28;
+    --baseline:       #423b36;
+    --border:         rgba(248,246,244,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --s4: #c98500; --s5: #d55181; --s6: #008300;
+    --warning-ink: color-mix(in oklab, var(--warning) 75%, white);
+    --accent: #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--page-plane); }
+  body { margin: 0; }
+  .viz-root {
+    background: var(--page-plane); color: var(--text-primary);
+    font-family: var(--font-ui); min-height: 100%; padding-bottom: 48px;
+  }
+  .dash-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); background: var(--surface-1); }
+  .dash-title { font-family: var(--font-mono); font-size: 18px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .dash-title::before { content: "// "; color: var(--accent); }
+  .dash-sub { font-size: 13px; color: var(--text-secondary); margin: 4px 0 14px; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tab-btn {
+    appearance: none; border: 1px solid transparent; background: transparent;
+    color: var(--text-secondary); font: inherit; font-size: 13.5px; font-weight: 550;
+    padding: 8px 14px; border-radius: 8px; cursor: pointer;
+  }
+  .tab-btn:hover { background: color-mix(in oklab, var(--text-primary) 6%, transparent); }
+  .tab-btn[aria-selected="true"] { background: var(--accent); color: white; }
+  .page { display: none; padding: 20px 24px; max-width: 1280px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  .grid { display: grid; gap: 14px; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 980px) { .grid-5 { grid-template-columns: repeat(3, 1fr); } .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) { .grid-5 { grid-template-columns: repeat(2, 1fr); } }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .card-title { font-size: 12.5px; font-weight: 650; color: var(--text-secondary); margin: 0 0 2px; text-transform: uppercase; letter-spacing: .02em; }
+  .card-sub { font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px; }
+
+  .stat-label { font-size: 12px; color: var(--text-secondary); margin: 0 0 6px; }
+  .stat-value { font-family: var(--font-mono); font-size: 24px; font-weight: 600; line-height: 1.1; }
+  .stat-value .unit { font-size: 14px; font-weight: 500; color: var(--text-secondary); margin-left: 2px; }
+
+  .section-gap { margin-top: 14px; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+  .legend-swatch-line { width: 14px; height: 2px; border-radius: 1px; }
+  .legend-swatch-rect { width: 10px; height: 10px; border-radius: 2px; }
+
+  .chart-wrap { position: relative; }
+  svg.chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+  svg.chart-svg text { font-family: var(--font-mono); }
+  .chart-tooltip {
+    position: absolute; pointer-events: none; background: var(--text-primary); color: var(--surface-1);
+    font-size: 11.5px; padding: 7px 10px; border-radius: 7px; line-height: 1.5; font-family: var(--font-mono);
+    transform: translate(-50%, -100%); white-space: nowrap; z-index: 5; opacity: 0; transition: opacity .08s;
+  }
+  .chart-tooltip .tt-val { font-weight: 650; }
+  .chart-tooltip .tt-row { display: flex; align-items: center; gap: 6px; }
+  .chart-tooltip .tt-key { width: 9px; height: 2px; flex: none; }
+
+  .data-table-wrap { overflow-x: auto; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.data-table th {
+    text-align: left; font-weight: 650; color: var(--text-secondary); font-size: 11px;
+    text-transform: uppercase; letter-spacing: .02em; padding: 8px 10px; border-bottom: 1px solid var(--baseline);
+    white-space: nowrap; position: sticky; top: 0; background: var(--surface-1);
+  }
+  table.data-table th.sortable { cursor: pointer; user-select: none; }
+  table.data-table th.sortable:hover { color: var(--text-primary); }
+  table.data-table td { padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  table.data-table tbody tr:hover td { background: color-mix(in oklab, var(--text-primary) 4%, transparent); }
+
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 650; }
+  .pill-critical { background: color-mix(in oklab, var(--critical) 16%, transparent); color: var(--critical); }
+  .pill-high { background: color-mix(in oklab, var(--serious) 18%, transparent); color: var(--serious); }
+  .pill-medium { background: color-mix(in oklab, var(--warning) 22%, transparent); color: var(--warning-ink); }
+  .pill-low { background: color-mix(in oklab, var(--good) 16%, transparent); color: var(--good); }
+  .pill-pending { background: color-mix(in oklab, var(--text-muted) 20%, transparent); color: var(--text-secondary); }
+  .pill-reviewed { background: color-mix(in oklab, var(--s1) 16%, transparent); color: var(--s1); }
+  .pill-escalated { background: color-mix(in oklab, var(--critical) 16%, transparent); color: var(--critical); }
+  .pill-cleared { background: color-mix(in oklab, var(--good) 16%, transparent); color: var(--good); }
+
+  .filters-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filters-row select { font: inherit; font-size: 12.5px; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
+  .result-note { font-size: 12px; color: var(--text-muted); margin: 0 0 10px; }
+  .table-scroll { max-height: 460px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .table-scroll table.data-table th { top: -1px; }
+  .empty-row td { text-align: center; color: var(--text-muted); padding: 24px; }
+
+  .model-badge {
+    display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono);
+    font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+    background: color-mix(in oklab, var(--accent) 14%, transparent); color: var(--accent);
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+  .disclaimer {
+    font-size: 11.5px; color: var(--text-muted); border-top: 1px dashed var(--border);
+    margin-top: 20px; padding-top: 10px;
+  }
+</style>
+
+<div class="viz-root">
+  <div class="dash-header">
+    <p class="dash-title">Fraud Risk Console</p>
+    <p class="dash-sub">Fintech Fraud Risk Analytics — portfolio simulation on public, anonymized transaction data</p>
+    <div class="tabs" role="tablist">
+      <button class="tab-btn" role="tab" data-page="overview" aria-selected="true">Executive Overview</button>
+      <button class="tab-btn" role="tab" data-page="risk" aria-selected="false">Risk Monitoring</button>
+      <button class="tab-btn" role="tab" data-page="model" aria-selected="false">Model Performance</button>
+      <button class="tab-btn" role="tab" data-page="ops" aria-selected="false">Operations Review</button>
+    </div>
+  </div>
+
+  <!-- ============ PAGE 1: EXECUTIVE OVERVIEW ============ -->
+  <section class="page active" data-page="overview">
+    <div class="grid grid-5" id="ov-stats"></div>
+
+    <div class="grid grid-2 section-gap">
+      <div class="card">
+        <p class="card-title">Risk distribution</p>
+        <p class="card-sub">Test-set transactions by risk tier</p>
+        <div class="chart-wrap" id="ov-risk-chart"></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Chosen model</p>
+        <p class="card-sub">Selected by PR-AUC on the held-out test set</p>
+        <div id="ov-model-summary"></div>
+      </div>
+    </div>
+    <p class="disclaimer">Portfolio simulation built on a public, anonymized dataset (ULB/Worldline via OpenML) — not a real financial institution's production fraud system. See README "Limitations".</p>
+  </section>
+
+  <!-- ============ PAGE 2: RISK MONITORING ============ -->
+  <section class="page" data-page="risk">
+    <div class="grid grid-2">
+      <div class="card">
+        <p class="card-title">Fraud probability distribution</p>
+        <p class="card-sub">Test-set transactions, by probability band</p>
+        <div class="chart-wrap" id="risk-prob-chart"></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Fraud rate by hour of day</p>
+        <p class="card-sub">Approximate — Time is relative, not a verified clock (see README)</p>
+        <div class="chart-wrap" id="risk-hour-chart"></div>
+      </div>
+    </div>
+    <div class="card section-gap">
+      <p class="card-title">Transaction amount: fraud vs. legitimate</p>
+      <p class="card-sub">Share of each class falling in each amount bucket</p>
+      <div class="chart-wrap" id="risk-amount-chart"></div>
+    </div>
+  </section>
+
+  <!-- ============ PAGE 3: MODEL PERFORMANCE ============ -->
+  <section class="page" data-page="model">
+    <div class="card">
+      <p class="card-title">Model comparison</p>
+      <p class="card-sub">Test set — the number that counts, not validation</p>
+      <div class="data-table-wrap">
+        <table class="data-table" id="model-table">
+          <thead><tr><th>Model</th><th>Precision</th><th>Recall</th><th>F1</th><th>ROC-AUC</th><th>PR-AUC</th></tr></thead>
+          <tbody id="model-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card section-gap">
+      <p class="card-title">PR-AUC by model</p>
+      <p class="card-sub">The metric used to select the deployed model under 284:1 class imbalance</p>
+      <div class="chart-wrap" id="model-prauc-chart"></div>
+    </div>
+    <div class="card section-gap">
+      <p class="card-title">Confusion matrix</p>
+      <p class="card-sub" id="model-cm-sub"></p>
+      <div id="model-cm"></div>
+    </div>
+  </section>
+
+  <!-- ============ PAGE 4: OPERATIONS REVIEW ============ -->
+  <section class="page" data-page="ops">
+    <div class="grid grid-3" id="ops-stats"></div>
+    <div class="card section-gap">
+      <p class="card-title">Exception queue</p>
+      <p class="result-note" id="ops-count-note"></p>
+      <div class="filters-row">
+        <select id="f-risk"><option value="">Risk level: all</option></select>
+        <select id="f-status"><option value="">Review status: all</option></select>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table" id="ops-table">
+          <thead><tr>
+            <th class="sortable" data-key="transaction_id">Transaction ID</th>
+            <th class="sortable" data-key="transaction_amount">Amount</th>
+            <th class="sortable" data-key="fraud_probability">Fraud probability</th>
+            <th class="sortable" data-key="risk_level">Risk level</th>
+            <th class="sortable" data-key="prediction">Prediction</th>
+            <th class="sortable" data-key="review_status">Review status</th>
+          </tr></thead>
+          <tbody id="ops-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="disclaimer">Review status is simulated for this portfolio project (weighted random assignment) — there is no real review team behind this queue. This page demonstrates the shape of an operational workflow, not a live one.</p>
+  </section>
+</div>
+
+<script id="dashboard-data" type="application/json">{"kpis":{"total_transactions":56746,"fraud_transactions":95,"fraud_rate_pct":0.16741268107003138,"total_transaction_value":4991937.62,"high_risk_transactions":81,"imbalance_ratio":596},"riskDistribution":[{"risk_level":"LOW","count":56573},{"risk_level":"MEDIUM","count":92},{"risk_level":"HIGH","count":13},{"risk_level":"CRITICAL","count":68}],"probabilityBands":[{"band":"0-10%","count":56159},{"band":"10-20%","count":349},{"band":"20-30%","count":67},{"band":"30-40%","count":17},{"band":"40-50%","count":8},{"band":"50-60%","count":3},{"band":"60-70%","count":3},{"band":"70-80%","count":7},{"band":"80-90%","count":11},{"band":"90-100%","count":57}],"hourly":[{"hour":0,"fraud_rate_pct":0.1292824822236587},{"hour":1,"fraud_rate_pct":0.2242152466367713},{"hour":2,"fraud_rate_pct":1.4947683109118086},{"hour":3,"fraud_rate_pct":0.7153075822603719},{"hour":4,"fraud_rate_pct":1.1363636363636365},{"hour":5,"fraud_rate_pct":0.0},{"hour":6,"fraud_rate_pct":0.36014405762304924},{"hour":7,"fraud_rate_pct":0.33783783783783783},{"hour":8,"fraud_rate_pct":0.0991571641051066},{"hour":9,"fraud_rate_pct":0.09696186166774402},{"hour":10,"fraud_rate_pct":0.09090909090909091},{"hour":11,"fraud_rate_pct":0.26564344746162927},{"hour":12,"fraud_rate_pct":0.192},{"hour":13,"fraud_rate_pct":0.09448818897637795},{"hour":14,"fraud_rate_pct":0.03045994517209869},{"hour":15,"fraud_rate_pct":0.18450184501845018},{"hour":16,"fraud_rate_pct":0.18518518518518517},{"hour":17,"fraud_rate_pct":0.21658415841584158},{"hour":18,"fraud_rate_pct":0.14836795252225518},{"hour":19,"fraud_rate_pct":0.09986684420772303},{"hour":20,"fraud_rate_pct":0.06148170919151552},{"hour":21,"fraud_rate_pct":0.08460236886632826},{"hour":22,"fraud_rate_pct":0.0},{"hour":23,"fraud_rate_pct":0.17937219730941703}],"amountBuckets":[{"bucket":"0-1","legit_share_pct":10.131258769826468,"fraud_share_pct":34.831460674157306},{"bucket":"1-10","legit_share_pct":24.72069767854923,"fraud_share_pct":13.48314606741573},{"bucket":"10-50","legit_share_pct":32.13442034777357,"fraud_share_pct":13.48314606741573},{"bucket":"50-100","legit_share_pct":13.420720768725245,"fraud_share_pct":12.359550561797752},{"bucket":"100-500","legit_share_pct":16.39580114029946,"fraud_share_pct":19.101123595505616},{"bucket":"500-1000","legit_share_pct":2.124296193673292,"fraud_share_pct":2.247191011235955},{"bucket":"1000+","legit_share_pct":1.0728051011527326,"fraud_share_pct":4.49438202247191}],"modelResults":[{"model_name":"Logistic Regression","evaluated_on":"test","precision_score":0.0574,"recall_score":0.9053,"f1_score":0.108,"roc_auc":0.9627,"pr_auc":0.7328},{"model_name":"Random Forest","evaluated_on":"test","precision_score":0.8765,"recall_score":0.7474,"f1_score":0.8068,"roc_auc":0.9852,"pr_auc":0.8117},{"model_name":"Gradient Boosting","evaluated_on":"test","precision_score":0.2314,"recall_score":0.8842,"f1_score":0.3668,"roc_auc":0.9773,"pr_auc":0.7594}],"chosenModel":{"name":"Random Forest","pr_auc":0.8117,"threshold":0.3},"confusionMatrix":{"tn":56622,"fp":29,"fn":18,"tp":77},"exceptions":[{"transaction_id":"TXN0088558","transaction_amount":1.0,"fraud_probability":0.8051,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0064201","transaction_amount":99.99,"fraud_probability":0.9862,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0191880","transaction_amount":362.55,"fraud_probability":0.8724,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0006603","transaction_amount":1.0,"fraud_probability":0.9315,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0010640","transaction_amount":89.99,"fraud_probability":0.8128,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0142794","transaction_amount":252.92,"fraud_probability":0.9996,"risk_level":"CRITICAL","prediction":1,"review_status":"CLEARED"},{"transaction_id":"TXN0242796","transaction_amount":1.0,"fraud_probability":0.9796,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0150085","transaction_amount":44.9,"fraud_probability":0.9862,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0247382","transaction_amount":0.0,"fraud_probability":0.9181,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0030876","transaction_amount":111.7,"fraud_probability":0.9996,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0017426","transaction_amount":99.99,"fraud_probability":0.9395,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0222746","transaction_amount":1.0,"fraud_probability":0.9863,"risk_level":"CRITICAL","prediction":1,"review_status":"CLEARED"},{"transaction_id":"TXN0015399","transaction_amount":99.99,"fraud_probability":0.9928,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0013359","transaction_amount":89.99,"fraud_probability":0.7661,"risk_level":"HIGH","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0014118","transaction_amount":99.99,"fraud_probability":0.8594,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0041827","transaction_amount":0.76,"fraud_probability":0.9929,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0154363","transaction_amount":2.27,"fraud_probability":0.7528,"risk_level":"HIGH","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0143558","transaction_amount":1.0,"fraud_probability":0.9929,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0151633","transaction_amount":8.64,"fraud_probability":0.9929,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0027642","transaction_amount":19.02,"fraud_probability":0.9862,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0009211","transaction_amount":1.0,"fraud_probability":0.9662,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0233832","transaction_amount":0.0,"fraud_probability":0.705,"risk_level":"HIGH","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0088870","transaction_amount":1402.16,"fraud_probability":0.6995,"risk_level":"HIGH","prediction":1,"review_status":"CLEARED"},{"transaction_id":"TXN0114448","transaction_amount":8.99,"fraud_probability":0.5347,"risk_level":"HIGH","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0042980","transaction_amount":273.01,"fraud_probability":0.9796,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0162968","transaction_amount":65.0,"fraud_probability":0.9395,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0189360","transaction_amount":0.76,"fraud_probability":0.9594,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0150069","transaction_amount":75.86,"fraud_probability":0.9728,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0006299","transaction_amount":1.0,"fraud_probability":0.9261,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0013974","transaction_amount":89.99,"fraud_probability":0.8128,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0014159","transaction_amount":99.99,"fraud_probability":0.9395,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0228866","transaction_amount":1.18,"fraud_probability":0.9796,"risk_level":"CRITICAL","prediction":1,"review_status":"CLEARED"},{"transaction_id":"TXN0043499","transaction_amount":53.95,"fraud_probability":0.9796,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0095239","transaction_amount":1354.25,"fraud_probability":0.8127,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0172144","transaction_amount":144.62,"fraud_probability":0.9728,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0008804","transaction_amount":0.0,"fraud_probability":0.9928,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0150111","transaction_amount":37.93,"fraud_probability":0.9795,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0012422","transaction_amount":89.99,"fraud_probability":0.7994,"risk_level":"HIGH","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0150088","transaction_amount":209.65,"fraud_probability":0.9595,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0006861","transaction_amount":1.0,"fraud_probability":0.9861,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0076627","transaction_amount":1.0,"fraud_probability":0.9929,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0233705","transaction_amount":0.0,"fraud_probability":0.9927,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0150421","transaction_amount":1.0,"fraud_probability":0.9795,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0250555","transaction_amount":0.77,"fraud_probability":0.9795,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0119617","transaction_amount":109.9,"fraud_probability":0.9929,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0162531","transaction_amount":17.06,"fraud_probability":0.8728,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0042707","transaction_amount":37.32,"fraud_probability":0.9996,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0043442","transaction_amount":39.45,"fraud_probability":0.6193,"risk_level":"HIGH","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0014145","transaction_amount":99.99,"fraud_probability":0.9394,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0082745","transaction_amount":6.27,"fraud_probability":0.9728,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0012326","transaction_amount":1.0,"fraud_probability":0.9929,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0142648","transaction_amount":2.0,"fraud_probability":0.5794,"risk_level":"HIGH","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0057377","transaction_amount":0.76,"fraud_probability":0.953,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0157262","transaction_amount":0.76,"fraud_probability":0.9795,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0243427","transaction_amount":1.0,"fraud_probability":0.9862,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0149033","transaction_amount":261.22,"fraud_probability":0.5653,"risk_level":"HIGH","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0120369","transaction_amount":99.9,"fraud_probability":0.9996,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0202972","transaction_amount":0.0,"fraud_probability":0.8581,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0043819","transaction_amount":802.52,"fraud_probability":0.7791,"risk_level":"HIGH","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0123613","transaction_amount":1.0,"fraud_probability":0.6905,"risk_level":"HIGH","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0146988","transaction_amount":1.18,"fraud_probability":0.7929,"risk_level":"HIGH","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0017538","transaction_amount":89.99,"fraud_probability":0.8993,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0106647","transaction_amount":318.11,"fraud_probability":0.8856,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0046710","transaction_amount":1.0,"fraud_probability":0.9862,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0017312","transaction_amount":99.99,"fraud_probability":0.9928,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0008577","transaction_amount":1.0,"fraud_probability":0.9728,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0043024","transaction_amount":106.55,"fraud_probability":0.993,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0013784","transaction_amount":89.99,"fraud_probability":0.7794,"risk_level":"HIGH","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0010579","transaction_amount":89.99,"fraud_probability":0.8328,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0153243","transaction_amount":1.0,"fraud_probability":0.9728,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0222792","transaction_amount":1.0,"fraud_probability":0.9863,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0077046","transaction_amount":0.01,"fraud_probability":0.9863,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0191678","transaction_amount":2.0,"fraud_probability":0.9325,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0177540","transaction_amount":45.51,"fraud_probability":0.9929,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0077085","transaction_amount":444.17,"fraud_probability":0.9662,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0254458","transaction_amount":4.97,"fraud_probability":0.9452,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0079579","transaction_amount":270.0,"fraud_probability":0.9526,"risk_level":"CRITICAL","prediction":1,"review_status":"PENDING"},{"transaction_id":"TXN0044088","transaction_amount":1.0,"fraud_probability":0.993,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0083109","transaction_amount":5.91,"fraud_probability":0.9127,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"},{"transaction_id":"TXN0143562","transaction_amount":310.42,"fraud_probability":0.9863,"risk_level":"CRITICAL","prediction":1,"review_status":"ESCALATED"},{"transaction_id":"TXN0052353","transaction_amount":1.0,"fraud_probability":0.9525,"risk_level":"CRITICAL","prediction":1,"review_status":"REVIEWED"}]}</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("dashboard-data").textContent);
+  const root = document.querySelector(".viz-root");
+  const cssVar = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+
+  function fmtInt(n) { return Math.round(n).toLocaleString("en-GB"); }
+  function fmtPct(n, d = 2) { return n.toFixed(d) + "%"; }
+  function fmtMoney(n) {
+    if (Math.abs(n) >= 1e6) return "£" + (n / 1e6).toFixed(2) + "M";
+    if (Math.abs(n) >= 1e3) return "£" + (n / 1e3).toFixed(1) + "K";
+    return "£" + n.toFixed(2);
+  }
+
+  function el(tag, attrs, children) {
+    const isSvg = ["svg","g","path","line","rect","circle","polyline","text","tspan"].includes(tag);
+    const node = isSvg ? document.createElementNS("http://www.w3.org/2000/svg", tag) : document.createElement(tag);
+    if (attrs) for (const k in attrs) {
+      if (k === "text") node.textContent = attrs[k];
+      else node.setAttribute(k, attrs[k]);
+    }
+    (children || []).forEach((c) => node.appendChild(c));
+    return node;
+  }
+
+  const RISK_COLOR = { LOW: "--good", MEDIUM: "--warning", HIGH: "--serious", CRITICAL: "--critical" };
+  const RISK_PILL = { LOW: "pill-low", MEDIUM: "pill-medium", HIGH: "pill-high", CRITICAL: "pill-critical" };
+  const STATUS_PILL = { PENDING: "pill-pending", REVIEWED: "pill-reviewed", ESCALATED: "pill-escalated", CLEARED: "pill-cleared" };
+
+  function statTile(label, value, unit) {
+    const card = el("div", { class: "card" });
+    card.appendChild(el("p", { class: "stat-label", text: label }));
+    const v = el("div", { class: "stat-value", text: value });
+    if (unit) v.appendChild(el("span", { class: "unit", text: unit }));
+    card.appendChild(v);
+    return card;
+  }
+
+  // ---------------- horizontal bar chart (shared) ----------------
+  function hBarChart(container, { items, valueFormat, height }) {
+    const rowH = 28, gap = 8;
+    const W = 640, padR = 70, labelW = 140;
+    const H = height || items.length * (rowH + gap) + 10;
+    const plotW = W - padR - labelW;
+    const maxV = Math.max(...items.map((d) => d.value), 1);
+
+    const svg = el("svg", { class: "chart-svg", viewBox: `0 0 ${W} ${H}` });
+    const wrap = el("div", { class: "chart-wrap" }, [svg]);
+    const tooltip = el("div", { class: "chart-tooltip" });
+    wrap.appendChild(tooltip);
+
+    items.forEach((d, i) => {
+      const y = i * (rowH + gap) + 4;
+      const barW = Math.max(2, (d.value / maxV) * plotW);
+      svg.appendChild(el("text", { x: labelW - 8, y: y + rowH / 2 + 4, "text-anchor": "end", "font-size": 11.5, fill: cssVar("--text-secondary"), text: d.label }));
+      const bar = el("rect", { x: labelW, y, width: barW, height: rowH, rx: 4, fill: cssVar(d.colorVar || "--s1"), style: "cursor:pointer" });
+      svg.appendChild(bar);
+      svg.appendChild(el("text", { x: labelW + barW + 8, y: y + rowH / 2 + 4, "font-size": 11.5, fill: cssVar("--text-secondary"), text: d.display || valueFormat(d.value) }));
+      bar.addEventListener("pointerenter", () => bar.setAttribute("opacity", 0.82));
+      bar.addEventListener("pointerleave", () => { bar.setAttribute("opacity", 1); tooltip.style.opacity = 0; });
+      bar.addEventListener("pointermove", () => {
+        const rect = svg.getBoundingClientRect();
+        const scale = rect.width / W;
+        tooltip.innerHTML = "";
+        tooltip.appendChild(el("div", { style: "font-weight:650", text: d.label }));
+        tooltip.appendChild(el("div", { class: "tt-val", text: d.display || valueFormat(d.value) }));
+        tooltip.style.left = (rect.left - wrap.getBoundingClientRect().left + (labelW + barW / 2) * scale) + "px";
+        tooltip.style.top = (rect.top - wrap.getBoundingClientRect().top + y * scale - 8) + "px";
+        tooltip.style.opacity = 1;
+      });
+    });
+    container.appendChild(wrap);
+  }
+
+  // ---------------- line chart (shared, single or multi series) ----------------
+  function lineChart(container, { xLabels, series, yTickFormat, height }) {
+    height = height || 240;
+    const W = 720, H = height, padL = 44, padR = 12, padT = 12, padB = 26;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const n = xLabels.length;
+    let maxY = 0, minY = Infinity;
+    series.forEach((s) => s.values.forEach((v) => { if (v > maxY) maxY = v; if (v < minY) minY = v; }));
+    if (minY > 0) minY = 0;
+    const niceMax = maxY <= 0 ? 1 : maxY * 1.15;
+    const xAt = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+    const yAt = (v) => padT + plotH - ((v - minY) / (niceMax - minY)) * plotH;
+
+    const svg = el("svg", { class: "chart-svg", viewBox: `0 0 ${W} ${H}` });
+    const ticks = 4;
+    for (let t = 0; t <= ticks; t++) {
+      const val = minY + ((niceMax - minY) * t) / ticks;
+      const y = yAt(val);
+      svg.appendChild(el("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: cssVar("--grid"), "stroke-width": 1 }));
+      svg.appendChild(el("text", { x: padL - 8, y: y + 3, "text-anchor": "end", "font-size": 10, fill: cssVar("--text-muted"), text: yTickFormat(val) }));
+    }
+    svg.appendChild(el("line", { x1: padL, x2: W - padR, y1: padT + plotH, y2: padT + plotH, stroke: cssVar("--baseline"), "stroke-width": 1 }));
+
+    const xTickEvery = Math.max(1, Math.round(n / 8));
+    for (let i = 0; i < n; i += xTickEvery) {
+      svg.appendChild(el("text", { x: xAt(i), y: H - 6, "text-anchor": "middle", "font-size": 10, fill: cssVar("--text-muted"), text: xLabels[i] }));
+    }
+
+    series.forEach((s) => {
+      const pts = s.values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
+      svg.appendChild(el("polyline", { points: pts, fill: "none", stroke: cssVar(s.colorVar), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    });
+
+    const crosshair = el("line", { x1: 0, x2: 0, y1: padT, y2: padT + plotH, stroke: cssVar("--text-muted"), "stroke-width": 1, opacity: 0 });
+    svg.appendChild(crosshair);
+    const dots = series.map((s) => el("circle", { r: 4, fill: cssVar(s.colorVar), stroke: cssVar("--surface-1"), "stroke-width": 2, opacity: 0 }));
+    dots.forEach((d) => svg.appendChild(d));
+
+    const wrap = el("div", { class: "chart-wrap" }, [svg]);
+    const tooltip = el("div", { class: "chart-tooltip" });
+    wrap.appendChild(tooltip);
+    const hit = el("rect", { x: padL, y: padT, width: plotW, height: plotH, fill: "transparent" });
+    svg.appendChild(hit);
+
+    function showAt(i) {
+      crosshair.setAttribute("x1", xAt(i)); crosshair.setAttribute("x2", xAt(i)); crosshair.setAttribute("opacity", 1);
+      tooltip.innerHTML = "";
+      tooltip.appendChild(el("div", { style: "font-weight:650;margin-bottom:4px", text: xLabels[i] }));
+      series.forEach((s, si) => {
+        dots[si].setAttribute("cx", xAt(i)); dots[si].setAttribute("cy", yAt(s.values[i])); dots[si].setAttribute("opacity", 1);
+        const row = el("div", { class: "tt-row" });
+        row.appendChild(el("span", { class: "tt-key", style: `background:${cssVar(s.colorVar)}` }));
+        row.appendChild(el("span", { text: s.name + ": " }));
+        row.appendChild(el("span", { class: "tt-val", text: yTickFormat(s.values[i]) }));
+        tooltip.appendChild(row);
+      });
+      const rect = svg.getBoundingClientRect();
+      const scale = rect.width / W;
+      tooltip.style.left = (rect.left - wrap.getBoundingClientRect().left + xAt(i) * scale) + "px";
+      tooltip.style.top = (rect.top - wrap.getBoundingClientRect().top + yAt(series[0].values[i]) * scale - 10) + "px";
+      tooltip.style.opacity = 1;
+    }
+    function hide() { crosshair.setAttribute("opacity", 0); dots.forEach((d) => d.setAttribute("opacity", 0)); tooltip.style.opacity = 0; }
+    hit.addEventListener("pointermove", (e) => {
+      const rect = svg.getBoundingClientRect();
+      const scale = W / rect.width;
+      const localX = (e.clientX - rect.left) * scale;
+      let i = Math.round(((localX - padL) / plotW) * (n - 1));
+      i = Math.max(0, Math.min(n - 1, i));
+      showAt(i);
+    });
+    hit.addEventListener("pointerleave", hide);
+
+    if (series.length > 1) {
+      const legend = el("div", { class: "legend" });
+      series.forEach((s) => {
+        const item = el("div", { class: "legend-item" });
+        item.appendChild(el("span", { class: "legend-swatch-line", style: `background:${cssVar(s.colorVar)}` }));
+        item.appendChild(el("span", { text: s.name }));
+        legend.appendChild(item);
+      });
+      container.appendChild(legend);
+    }
+    container.appendChild(wrap);
+  }
+
+  // ---------------- grouped bar (legit vs fraud share by bucket) ----------------
+  function groupedBarChart(container, { categories, series, valueFormat }) {
+    const W = 720, H = 260, padL = 40, padR = 12, padT = 12, padB = 30;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const groupW = plotW / categories.length;
+    const barW = Math.min(22, groupW / (series.length + 1));
+    const maxV = Math.max(...series.flatMap((s) => s.values), 1) * 1.15;
+    const yAt = (v) => padT + plotH - (v / maxV) * plotH;
+
+    const svg = el("svg", { class: "chart-svg", viewBox: `0 0 ${W} ${H}` });
+    const wrap = el("div", { class: "chart-wrap" }, [svg]);
+    const tooltip = el("div", { class: "chart-tooltip" });
+    wrap.appendChild(tooltip);
+
+    for (let t = 0; t <= 4; t++) {
+      const val = (maxV * t) / 4;
+      const y = yAt(val);
+      svg.appendChild(el("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: cssVar("--grid"), "stroke-width": 1 }));
+      svg.appendChild(el("text", { x: padL - 6, y: y + 3, "text-anchor": "end", "font-size": 10, fill: cssVar("--text-muted"), text: valueFormat(val) }));
+    }
+    svg.appendChild(el("line", { x1: padL, x2: W - padR, y1: padT + plotH, y2: padT + plotH, stroke: cssVar("--baseline"), "stroke-width": 1 }));
+
+    categories.forEach((cat, ci) => {
+      const groupX = padL + ci * groupW;
+      series.forEach((s, si) => {
+        const v = s.values[ci];
+        const x = groupX + (groupW - series.length * barW) / 2 + si * barW;
+        const y = yAt(v);
+        const bar = el("rect", { x, y, width: barW - 2, height: (padT + plotH) - y, rx: 3, fill: cssVar(s.colorVar), style: "cursor:pointer" });
+        svg.appendChild(bar);
+        bar.addEventListener("pointerenter", () => bar.setAttribute("opacity", 0.8));
+        bar.addEventListener("pointerleave", () => { bar.setAttribute("opacity", 1); tooltip.style.opacity = 0; });
+        bar.addEventListener("pointermove", () => {
+          const rect = svg.getBoundingClientRect();
+          const scale = rect.width / W;
+          tooltip.innerHTML = "";
+          tooltip.appendChild(el("div", { style: "font-weight:650", text: cat }));
+          const row = el("div", { class: "tt-row" });
+          row.appendChild(el("span", { class: "tt-key", style: `background:${cssVar(s.colorVar)}` }));
+          row.appendChild(el("span", { text: s.name + ": " }));
+          row.appendChild(el("span", { class: "tt-val", text: valueFormat(v) }));
+          tooltip.appendChild(row);
+          tooltip.style.left = (rect.left - wrap.getBoundingClientRect().left + (x + barW / 2) * scale) + "px";
+          tooltip.style.top = (rect.top - wrap.getBoundingClientRect().top + y * scale - 8) + "px";
+          tooltip.style.opacity = 1;
+        });
+      });
+      svg.appendChild(el("text", { x: groupX + groupW / 2, y: H - 8, "text-anchor": "middle", "font-size": 10, fill: cssVar("--text-muted"), text: cat }));
+    });
+
+    const legend = el("div", { class: "legend" });
+    series.forEach((s) => {
+      const item = el("div", { class: "legend-item" });
+      item.appendChild(el("span", { class: "legend-swatch-rect", style: `background:${cssVar(s.colorVar)}` }));
+      item.appendChild(el("span", { text: s.name }));
+      legend.appendChild(item);
+    });
+    container.appendChild(legend);
+    container.appendChild(wrap);
+  }
+
+  // ================= PAGE 1: OVERVIEW =================
+  function renderOverview() {
+    const k = DATA.kpis;
+    const statsEl = document.getElementById("ov-stats");
+    statsEl.appendChild(statTile("Total transactions", fmtInt(k.total_transactions)));
+    statsEl.appendChild(statTile("Fraud transactions", fmtInt(k.fraud_transactions)));
+    statsEl.appendChild(statTile("Fraud rate", fmtPct(k.fraud_rate_pct, 3)));
+    statsEl.appendChild(statTile("Total transaction value", fmtMoney(k.total_transaction_value)));
+    statsEl.appendChild(statTile("High-risk transactions", fmtInt(k.high_risk_transactions)));
+
+    hBarChart(document.getElementById("ov-risk-chart"), {
+      items: DATA.riskDistribution.map((r) => ({ label: r.risk_level, value: r.count, colorVar: RISK_COLOR[r.risk_level] })),
+      valueFormat: fmtInt,
+    });
+
+    const summary = document.getElementById("ov-model-summary");
+    const badge = el("div", { class: "model-badge", text: DATA.chosenModel.name });
+    summary.appendChild(badge);
+    const p = el("p", { style: "font-size:13px;color:var(--text-secondary);line-height:1.6;margin:10px 0 0" });
+    p.textContent = `Selected by PR-AUC (${DATA.chosenModel.pr_auc.toFixed(4)}) on the held-out test set — `
+      + `the correct selection metric under ${DATA.kpis.imbalance_ratio}:1 class imbalance, where accuracy and even `
+      + `ROC-AUC alone can be misleading. Operating threshold: ${DATA.chosenModel.threshold} (this project's own choice, `
+      + `biased toward catching more fraud at the cost of more manual review).`;
+    summary.appendChild(p);
+  }
+
+  // ================= PAGE 2: RISK MONITORING =================
+  function renderRisk() {
+    hBarChart(document.getElementById("risk-prob-chart"), {
+      items: DATA.probabilityBands.map((b) => ({ label: b.band, value: b.count, colorVar: "--s1" })),
+      valueFormat: fmtInt,
+    });
+
+    lineChart(document.getElementById("risk-hour-chart"), {
+      xLabels: DATA.hourly.map((h) => String(h.hour)),
+      series: [{ name: "Fraud rate", colorVar: "--accent", values: DATA.hourly.map((h) => h.fraud_rate_pct) }],
+      yTickFormat: (v) => v.toFixed(2) + "%",
+    });
+
+    groupedBarChart(document.getElementById("risk-amount-chart"), {
+      categories: DATA.amountBuckets.map((b) => b.bucket),
+      series: [
+        { name: "Legitimate (share of class)", colorVar: "--s1", values: DATA.amountBuckets.map((b) => b.legit_share_pct) },
+        { name: "Fraud (share of class)", colorVar: "--critical", values: DATA.amountBuckets.map((b) => b.fraud_share_pct) },
+      ],
+      valueFormat: (v) => v.toFixed(1) + "%",
+    });
+  }
+
+  // ================= PAGE 3: MODEL PERFORMANCE =================
+  function renderModel() {
+    const tbody = document.getElementById("model-tbody");
+    DATA.modelResults.forEach((m) => {
+      const tr = el("tr");
+      const isChosen = m.model_name === DATA.chosenModel.name;
+      const nameCell = el("td", { text: m.model_name + (isChosen ? "  ★" : "") });
+      tr.appendChild(nameCell);
+      [m.precision_score, m.recall_score, m.f1_score, m.roc_auc, m.pr_auc].forEach((v) => {
+        tr.appendChild(el("td", { text: v.toFixed(4) }));
+      });
+      if (isChosen) tr.style.background = "color-mix(in oklab, var(--accent) 8%, transparent)";
+      tbody.appendChild(tr);
+    });
+
+    hBarChart(document.getElementById("model-prauc-chart"), {
+      items: DATA.modelResults.map((m) => ({
+        label: m.model_name, value: m.pr_auc,
+        colorVar: m.model_name === DATA.chosenModel.name ? "--accent" : "--s1",
+        display: m.pr_auc.toFixed(4),
+      })),
+      valueFormat: (v) => v.toFixed(4),
+    });
+
+    document.getElementById("model-cm-sub").textContent =
+      `${DATA.chosenModel.name} at threshold ${DATA.chosenModel.threshold}, test set`;
+    const cm = DATA.confusionMatrix;
+    const cmDiv = document.getElementById("model-cm");
+    const table = el("table", { class: "data-table", style: "max-width:520px" });
+    const mkRow = (cells, header) => {
+      const tr = el("tr");
+      cells.forEach((c) => tr.appendChild(el(header ? "th" : "td", { text: c })));
+      return tr;
+    };
+    const thead = el("thead");
+    thead.appendChild(mkRow(["", "Predicted: Legit", "Predicted: Fraud"], true));
+    table.appendChild(thead);
+    const tbody2 = el("tbody");
+    tbody2.appendChild(mkRow(["Actual: Legit", fmtInt(cm.tn), fmtInt(cm.fp)]));
+    tbody2.appendChild(mkRow(["Actual: Fraud", fmtInt(cm.fn), fmtInt(cm.tp)]));
+    table.appendChild(tbody2);
+    cmDiv.appendChild(table);
+    const note = el("p", { style: "font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin-top:10px" });
+    note.textContent = `${cm.fn} fraud cases missed (false negatives — the costliest error); `
+      + `${cm.fp} legitimate transactions flagged for review (false positives — a friction/capacity cost, not a loss).`;
+    cmDiv.appendChild(note);
+  }
+
+  // ================= PAGE 4: OPERATIONS REVIEW =================
+  let opsSort = { key: "fraud_probability", dir: -1 };
+  function populateSelect(id, values) {
+    const sel = document.getElementById(id);
+    values.forEach((v) => sel.appendChild(el("option", { value: v, text: v })));
+  }
+  function renderOps() {
+    const rows = DATA.exceptions;
+    const statsEl = document.getElementById("ops-stats");
+    const pending = rows.filter((r) => r.review_status === "PENDING").length;
+    const escalated = rows.filter((r) => r.review_status === "ESCALATED").length;
+    const exposure = rows.reduce((a, r) => a + r.transaction_amount, 0);
+    statsEl.appendChild(statTile("Pending review", fmtInt(pending)));
+    statsEl.appendChild(statTile("Escalated", fmtInt(escalated)));
+    statsEl.appendChild(statTile("Total exposure", fmtMoney(exposure)));
+
+    populateSelect("f-risk", [...new Set(rows.map((r) => r.risk_level))]);
+    populateSelect("f-status", [...new Set(rows.map((r) => r.review_status))]);
+
+    function draw() {
+      const riskF = document.getElementById("f-risk").value;
+      const statusF = document.getElementById("f-status").value;
+      let filtered = rows.filter((r) => (!riskF || r.risk_level === riskF) && (!statusF || r.review_status === statusF));
+      filtered = filtered.slice().sort((a, b) => {
+        const av = a[opsSort.key], bv = b[opsSort.key];
+        if (av < bv) return -1 * opsSort.dir;
+        if (av > bv) return 1 * opsSort.dir;
+        return 0;
+      });
+      document.getElementById("ops-count-note").textContent =
+        `Showing ${filtered.length.toLocaleString("en-GB")} of ${rows.length.toLocaleString("en-GB")} HIGH/CRITICAL-risk transactions flagged for review`;
+      const tbody = document.getElementById("ops-tbody");
+      tbody.innerHTML = "";
+      if (!filtered.length) {
+        tbody.appendChild(el("tr", { class: "empty-row" }, [el("td", { colspan: 6, text: "No transactions match these filters." })]));
+      }
+      filtered.forEach((r) => {
+        const tr = el("tr");
+        tr.appendChild(el("td", { text: r.transaction_id }));
+        tr.appendChild(el("td", { text: fmtMoney(r.transaction_amount) }));
+        tr.appendChild(el("td", { text: r.fraud_probability.toFixed(4) }));
+        const riskTd = el("td");
+        riskTd.appendChild(el("span", { class: "pill " + RISK_PILL[r.risk_level], text: r.risk_level }));
+        tr.appendChild(riskTd);
+        tr.appendChild(el("td", { text: r.prediction === 1 ? "FRAUD" : "LEGIT" }));
+        const statusTd = el("td");
+        statusTd.appendChild(el("span", { class: "pill " + STATUS_PILL[r.review_status], text: r.review_status }));
+        tr.appendChild(statusTd);
+        tbody.appendChild(tr);
+      });
+    }
+    ["f-risk", "f-status"].forEach((id) => document.getElementById(id).addEventListener("change", draw));
+    document.querySelectorAll("#ops-table th.sortable").forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.getAttribute("data-key");
+        opsSort.dir = opsSort.key === key ? -opsSort.dir : -1;
+        opsSort.key = key;
+        draw();
+      });
+    });
+    draw();
+  }
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach((b) => b.setAttribute("aria-selected", "false"));
+      btn.setAttribute("aria-selected", "true");
+      const page = btn.getAttribute("data-page");
+      document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.getAttribute("data-page") === page));
+    });
+  });
+
+  renderOverview();
+  renderRisk();
+  renderModel();
+  renderOps();
+})();
+</script>

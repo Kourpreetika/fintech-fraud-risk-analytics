@@ -1,0 +1,4 @@
+model_name,evaluated_on,precision_score,recall_score,f1_score,roc_auc,pr_auc
+Logistic Regression,test,0.0574,0.9053,0.108,0.9627,0.7328
+Random Forest,test,0.8765,0.7474,0.8068,0.9852,0.8117
+Gradient Boosting,test,0.2314,0.8842,0.3668,0.9773,0.7594

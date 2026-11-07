@@ -1,0 +1,22 @@
+# Raw & intermediate data — large, regenerate with the pipeline (see README.md).
+# Small final outputs (data/processed/transactions.csv, fraud_predictions.csv,
+# model_results.csv, exception_transactions.csv) and the trained .joblib
+# models are kept as tangible outputs.
+data/raw/*.csv
+data/raw/*.arff
+data/processed/transactions_clean.csv
+data/processed/transactions_features.csv
+!data/raw/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Power BI (local cache/binary — this project ships a build kit, not a .pbix)
+*.pbix
+.pbi/
+
+# OS
+.DS_Store
+Thumbs.db
